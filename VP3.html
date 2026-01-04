@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tic Tac Toe – Glass UI</title>
+
+<style>
+  :root {
+    --bg: linear-gradient(135deg, #dbeafe, #f0f9ff);
+    --glass: rgba(255, 255, 255, 0.35);
+    --border: rgba(255, 255, 255, 0.4);
+    --text: #111;
+    --cell-hover: rgba(255,255,255,0.6);
+    --win: #7CFC98;
+  }
+
+  body.dark {
+    --bg: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    --glass: rgba(30, 30, 30, 0.45);
+    --border: rgba(255, 255, 255, 0.15);
+    --text: #f5f5f5;
+    --cell-hover: rgba(255,255,255,0.15);
+    --win: #2ecc71;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.8s ease, color 0.5s ease;
+  }
+
+  .container {
+    background: var(--glass);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    padding: 25px 30px 30px;
+    width: 360px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    transition: background 0.6s ease;
+  }
+
+  h1 {
+    margin: 0 0 10px;
+  }
+
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 10px;
+    border: none;
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    color: var(--text);
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
+  }
+
+  button:hover {
+    transform: scale(1.05);
+  }
+
+  .scoreboard {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0 15px;
+    font-size: 14px;
+  }
+
+  .game-board {
+    display: grid;
+    grid-template-columns: repeat(3, 90px);
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 15px;
+  }
+
+  .cell {
+    width: 90px;
+    height: 90px;
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    border-radius: 16px;
+    font-size: 2.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.25s, background 0.3s;
+  }
+
+  .cell:hover {
+    background: var(--cell-hover);
+    transform: translateY(-4px);
+  }
+
+  .cell.win {
+    background: var(--win);
+    animation: glow 0.6s infinite alternate;
+  }
+
+  @keyframes glow {
+    from { box-shadow: 0 0 10px var(--win); }
+    to { box-shadow: 0 0 25px var(--win); }
+  }
+
+  #status {
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Tic Tac Toe</h1>
+
+  <div class="controls">
+    <button onclick="setMode('pvp')">P vs P</button>
+    <button onclick="setMode('cpu')">P vs AI</button>
+    <button onclick="toggleTheme()">🌗</button>
+  </div>
+
+  <div class="scoreboard">
+    <div>X: <span id="sx">0</span></div>
+    <div>O: <span id="so">0</span></div>
+    <div>Draw: <span id="sd">0</span></div>
+  </div>
+
+  <div class="game-board" id="board"></div>
+
+  <div id="status"></div>
+
+  <button onclick="resetGame()">Restart</button>
+</div>
+
+<script>
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+
+let board, current, active, mode = "pvp";
+let sx = 0, so = 0, sd = 0;
+
+const wins = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+function toggleTheme() {
+  document.body.classList.toggle("dark");
+}
+
+function setMode(m) {
+  mode = m;
+  resetGame();
+}
+
+function createBoard() {
+  boardEl.innerHTML = "";
+  board.forEach((_, i) => {
+    const c = document.createElement("div");
+    c.className = "cell";
+    c.onclick = () => clickCell(i);
+    boardEl.appendChild(c);
+  });
+}
+
+function clickCell(i) {
+  if (!active || board[i]) return;
+
+  play(i, current);
+
+  if (mode === "cpu" && active && current === "O") {
+    setTimeout(() => {
+      play(minimax(board, "O").index, "O");
+    }, 400);
+  }
+}
+
+function play(i, p) {
+  board[i] = p;
+  document.querySelectorAll(".cell")[i].textContent = p;
+  check();
+  current = current === "X" ? "O" : "X";
+}
+
+function check() {
+  for (let w of wins) {
+    const [a,b,c] = w;
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      w.forEach(i => document.querySelectorAll(".cell")[i].classList.add("win"));
+      active = false;
+      board[a] === "X" ? sx++ : so++;
+      updateScore();
+      statusEl.textContent = `${board[a]} Wins!`;
+      return;
+    }
+  }
+
+  if (!board.includes("")) {
+    sd++;
+    updateScore();
+    statusEl.textContent = "Draw!";
+    active = false;
+  }
+}
+
+function updateScore() {
+  sxEl.textContent = sx;
+  soEl.textContent = so;
+  sdEl.textContent = sd;
+}
+
+function minimax(b, p) {
+  const empty = b.map((v,i) => v === "" ? i : null).filter(v => v !== null);
+  if (win(b,"X")) return { score:-10 };
+  if (win(b,"O")) return { score:10 };
+  if (!empty.length) return { score:0 };
+
+  let moves = [];
+  for (let i of empty) {
+    let m = { index:i };
+    b[i] = p;
+    m.score = minimax(b, p==="O"?"X":"O").score;
+    b[i] = "";
+    moves.push(m);
+  }
+  return p==="O"
+    ? moves.reduce((a,b)=>a.score>b.score?a:b)
+    : moves.reduce((a,b)=>a.score<b.score?a:b);
+}
+
+function win(b,p) {
+  return wins.some(w => w.every(i => b[i]===p));
+}
+
+function resetGame() {
+  board = ["","","","","","","","",""];
+  current = "X";
+  active = true;
+  statusEl.textContent = "Player X Turn";
+  createBoard();
+}
+
+const sxEl = document.getElementById("sx");
+const soEl = document.getElementById("so");
+const sdEl = document.getElementById("sd");
+
+resetGame();
+</script>
+
+</body>
+</html>
